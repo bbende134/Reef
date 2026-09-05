@@ -30,12 +30,21 @@ class Window: Identifiable {
     }
     
     func focus() {
+        // Raising alone is not enough for a window on another Space or another display:
+        // it reorders the app's windows but tells macOS nothing about which one the user
+        // wants. Marking the window as the application's main window first is what makes
+        // the switch to its desktop happen on activation.
+        try? self.element.setAttributeValue(.main, true)
+
         do {
             try self.element.performAction(.raise)
-            self.application.activate()
         } catch {
+            // The element is gone -- the window was closed since the panel was built.
             try? self.application.reopen()
+            return
         }
+
+        self.application.activate()
     }
     
     static func getFrontWindow() -> Window? {
