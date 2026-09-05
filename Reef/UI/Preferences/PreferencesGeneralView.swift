@@ -16,6 +16,7 @@ struct PreferencesGeneralView: View {
     @AppStorage("appearance") private var appearance = "system"
     @AppStorage("defaultNumberOrder") private var defaultNumberOrder = "rightHanded"
     @AppStorage("instantSwitch") private var instantSwitch = "never"
+    @AppStorage(WindowRegistry.preferenceKey) private var includeOtherSpaces = true
     
     @State private var hasAccessibilityPermission = AXIsProcessTrusted()
     
@@ -70,12 +71,21 @@ struct PreferencesGeneralView: View {
                     Text("Left handed (1, ..., 9, 0)").tag("leftHanded")
                 }
                 .pickerStyle(.menu)
+
+                Toggle("Include windows from other spaces and displays", isOn: $includeOtherSpaces)
             } footer: {
-                Text("Number order sets the order in which numbers are displayed in the menubar")
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Number order sets the order in which numbers are displayed in the menubar")
+
+                    Text("Switching across spaces only covers spaces you have visited since "
+                         + "Reef started, because macOS does not let an app see windows on a "
+                         + "space it has not been shown. Turn this off to list only the space "
+                         + "you are on.")
+                }
             }
         }
         .formStyle(.grouped)
-        .frame(height: hasAccessibilityPermission ? 224 : 294)
+        .frame(height: hasAccessibilityPermission ? 290 : 355)
         .onReceive(timer) { _ in
             // Poll for permission changes
             hasAccessibilityPermission = AXIsProcessTrusted()

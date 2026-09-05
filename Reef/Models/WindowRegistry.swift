@@ -26,6 +26,16 @@ import Cocoa
 final class WindowRegistry {
     static let shared = WindowRegistry()
 
+    /// Whether the switcher should reach beyond the space you are currently on.
+    /// Defaults to on; surfaced in Preferences -> General.
+    static let preferenceKey = "includeWindowsFromOtherSpaces"
+
+    static var isEnabled: Bool {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: preferenceKey) != nil else { return true }
+        return defaults.bool(forKey: preferenceKey)
+    }
+
     private struct Entry {
         let element: AXUIElement
         let pid: pid_t
@@ -81,7 +91,9 @@ final class WindowRegistry {
     /// Windows this app owns that Accessibility cannot reach right now but which are
     /// still alive — in practice, the ones sitting on another Space.
     func offSpaceWindows(pid: pid_t, excluding liveIDs: Set<CGWindowID>) -> [AXUIElement] {
-        entries
+        guard WindowRegistry.isEnabled else { return [] }
+
+        return entries
             .filter { $0.value.pid == pid && !liveIDs.contains($0.key) }
             .sorted { $0.key < $1.key }          // stable order between invocations
             .compactMap { isAlive($0.value.element) ? $0.value.element : nil }
