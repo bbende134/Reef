@@ -222,12 +222,21 @@ class Application {
             return []
         }
         
-        // NOTE: Only returns windows in current Desktop (but multiple monitors does work)
-        guard let windows: [AXUIElement] = element.getAttributeValue(.windows) else {
-            return []
+        // Accessibility only reports windows on the Space we are currently on. Anything
+        // this app has open on another desktop is invisible here, so the registry adds
+        // back the handles it captured while those Spaces were visited.
+        let live: [AXUIElement] = element.getAttributeValue(.windows) ?? []
+
+        guard let pid else {
+            return live
         }
-        
-        return windows
+
+        let liveIDs = WindowRegistry.shared.record(pid: pid)
+        let offSpace = WindowRegistry.shared.offSpaceWindows(pid: pid, excluding: liveIDs)
+
+        // Windows on the current Space stay first, so switching within the desktop you
+        // are looking at behaves exactly as it did before.
+        return live + offSpace
     }
     
     func getWindows() -> [Window] {

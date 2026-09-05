@@ -82,6 +82,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         windowManager = PreferencesController()
         
         NSApp.setActivationPolicy(.accessory)
+        WindowRegistry.shared.start()
     }
 
     func applicationWillTerminate(_ notification: Notification) {

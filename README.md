@@ -48,7 +48,18 @@ To switch between apps and windows:
 
 In this way, Reef gives every app its own 'Alt-Tab'.
 
-Note that window switching is scoped to your current [macOS space](https://support.apple.com/en-ca/guide/mac-help/mh14112/mac).
+Window switching reaches across [macOS spaces](https://support.apple.com/en-ca/guide/mac-help/mh14112/mac), not just the desktop you are looking at.
+
+The Accessibility API only reports an app's windows on the current space — an app whose
+windows all live on another desktop returns nothing at all. Reef works around this by
+keeping every window handle it has seen: a handle captured while its window was on the
+current space stays valid, and keeps a readable title, after you move away. Windows on
+the desktop you are on are listed first.
+
+The limitation this leaves is worth knowing: **Reef only learns about a space once you
+have visited it since Reef started.** The list fills in as you work rather than being
+complete at launch. Doing better needs either private SkyLight APIs or Screen Recording
+permission, neither of which seems a fair price for a window switcher.
 
 ### Aligning windows
 
