@@ -109,7 +109,3 @@ struct PreferencesGeneralView: View {
         }
     }
 }
-
-#Preview {
-    PreferencesGeneralView()
-}

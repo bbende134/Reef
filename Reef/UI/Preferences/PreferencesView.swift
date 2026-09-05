@@ -22,8 +22,3 @@ struct PreferencesView: View {
         .frame(width: 650)
     }
 }
-
-#Preview {
-    PreferencesView()
-        .environmentObject(ProfileManager())
-}

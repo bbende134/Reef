@@ -113,6 +113,58 @@ You can find your macOS version from the ** → About This Mac** page.
 
 ## Development
 
+### Building without Xcode
+
+This fork builds with only the **Xcode Command Line Tools** — no 30 GB Xcode install:
+
+```bash
+./build.sh          # -> .build/Reef.app   (~30 s from clean)
+./check.sh          # runs the model-layer assertions
+```
+
+`Package.swift` is an alternative front door; `Reef.xcodeproj` is untouched and still
+works if you do have Xcode.
+
+Three things ship only inside Xcode.app, so the standalone build works around each:
+
+| Missing | Consequence | Workaround |
+| --- | --- | --- |
+| `actool` | Asset catalogs cannot compile | `ReefMenuIcon44.png` is copied straight into `Resources` and loaded by `ReefApp.menuBarIcon`. The app has no Finder icon. |
+| `PreviewsMacros` | `#Preview` fails to compile | Previews removed from Reef's views, and KeyboardShortcuts is vendored with its three previews stripped (see `Vendor/KeyboardShortcuts/VENDORED.md`) |
+| XCTest / swift-testing | `ReefTests/` cannot run | The same assertions live in `Checks/main.swift`, run by `./check.sh` |
+
+Sparkle is removed entirely in this fork, which also avoids embedding and signing a
+framework with nested XPC services by hand.
+
+#### Signing and the Accessibility permission
+
+`build.sh` signs ad-hoc but pins an explicit designated requirement:
+
+```
+designated => identifier "xandergouws.Reef"
+```
+
+This matters. A plain ad-hoc signature's requirement is a bare `cdhash`, which changes
+on every rebuild and invalidates the Accessibility grant each time. Pinning it to the
+bundle identifier means one grant covers every future build — verified by rebuilding
+with changed code and confirming the requirement is byte-identical while the cdhash
+moved.
+
+Because the signing identity differs from the released app's Developer ID, the existing
+grant does **not** carry over on first install:
+
+```bash
+osascript -e 'tell application "Reef" to quit'
+rm -rf /Applications/Reef.app
+ditto .build/Reef.app /Applications/Reef.app
+tccutil reset Accessibility xandergouws.Reef
+open /Applications/Reef.app
+```
+
+Then press <kbd>Ctrl</kbd>+<kbd>1</kbd> to trigger the permission prompt, allow Reef in
+System Settings → Privacy & Security → Accessibility, and quit and relaunch it.
+
+
 Please share issues and feedback via the [GitHub issues page](https://github.com/gouwsxander/Reef/issues).
 
 Feel free to submit pull requests, though we can't guarantee that we'll get to them.

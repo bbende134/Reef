@@ -13,7 +13,6 @@ import ServiceManagement
 struct ReefApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var profileManager: ProfileManager
-    @StateObject private var sparkleConnector = SparkleConnector()
     @AppStorage("launchOnLogin") private var launchOnLogin = true
 
     init() {
@@ -28,11 +27,29 @@ struct ReefApp: App {
         }
     }
 
+    /// The menu bar icon, loaded from Resources rather than an asset catalog.
+    ///
+    /// `Image("menu_placeholder")` needs a compiled Assets.car, and `actool` ships only
+    /// with Xcode. The imageset declared 22 pt at 1x with template rendering, so the 2x
+    /// PNG is loaded and sized down to match.
+    static let menuBarIcon: NSImage = {
+        if let url = Bundle.main.url(forResource: "ReefMenuIcon44", withExtension: "png"),
+           let image = NSImage(contentsOf: url) {
+            image.isTemplate = true
+            image.size = NSSize(width: 22, height: 22)
+            return image
+        }
+
+        let fallback = NSImage(systemSymbolName: "rectangle.split.2x2",
+                               accessibilityDescription: "Reef") ?? NSImage()
+        fallback.isTemplate = true
+        return fallback
+    }()
+
     var body: some Scene {
         Settings {
             PreferencesView()
                 .environmentObject(profileManager)
-                .environmentObject(sparkleConnector)
         }
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentSize)
@@ -40,7 +57,6 @@ struct ReefApp: App {
         MenuBarExtra {
             MenuBarView()
                 .environmentObject(profileManager)
-                .environmentObject(sparkleConnector)
         } label: {
             MenuBarLabel(profileManager: profileManager)
         }

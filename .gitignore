@@ -6,3 +6,6 @@
 **/*.xcuserstate
 
 Config/LocalSigning.xcconfig
+
+# Local builds
+.build/

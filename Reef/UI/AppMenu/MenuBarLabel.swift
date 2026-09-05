@@ -23,8 +23,7 @@ struct MenuBarLabel: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image("menu_placeholder")
-                .renderingMode(.template)
+            Image(nsImage: ReefApp.menuBarIcon)
             if showActiveProfileInMenuBar, !text.isEmpty {
                 Text(text)
             }

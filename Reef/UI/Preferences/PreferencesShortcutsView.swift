@@ -140,7 +140,3 @@ struct PreferencesShortcutsView: View {
         }
     }
 }
-
-#Preview {
-    PreferencesShortcutsView()
-}
