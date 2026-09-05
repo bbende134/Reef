@@ -14,26 +14,24 @@ final class CyclePanelController: NSObject {
     private(set) var panel: CyclePanel!
     private let state = CyclePanelState()
     private let modifierManager: ModifierManager
+    private let aligner = WindowAligner()
     private var localFlagsMonitor: Any?
     private var globalFlagsMonitor: Any?
     private var keyDownMonitor: Any?
     private var currentApplication: Application?
     private var panelAnchorCenter: CGPoint?
 
-    private let panelContentWidth: CGFloat = 400
-    private let maxPanelFrameHeightCap: CGFloat = 520
-
-    // Keep these aligned with CyclePanelView.
-    private let headerHeight: CGFloat = 44
-    private let dividerHeight: CGFloat = 1
-    private let rowHeight: CGFloat = 44
-    private let rowSpacing: CGFloat = 4
-    private let listVerticalPadding: CGFloat = 8
     private static let releaseModifierMask: NSEvent.ModifierFlags = [.control, .option, .shift, .command]
+
+    /// The chord the user holds to keep the panel open, snapshotted when it opens.
+    ///
+    /// The key monitor needs this to tell "plain H" from "H with the corner modifier",
+    /// and reading it once per session beats reaching into the modifier manager per keystroke.
+    private var activateModifiers: NSEvent.ModifierFlags = [.control]
 
     private var minPanelContentHeight: CGFloat {
         // Minimum height that still matches the layout for one row.
-        headerHeight + dividerHeight + (listVerticalPadding * 2) + rowHeight
+        CyclePanelMetrics.contentHeight(rowCount: 1, includesHintRow: state.showsAlignmentHints)
     }
     
     init(modifierManager: ModifierManager) {
@@ -43,7 +41,7 @@ final class CyclePanelController: NSObject {
     }
     
     private func createPanel() {
-        let contentRect = NSRect(x: 0, y: 0, width: panelContentWidth, height: 300)
+        let contentRect = NSRect(x: 0, y: 0, width: CyclePanelMetrics.contentWidth, height: 300)
         panel = CyclePanel(contentRect: contentRect)
         
         let contentView = CyclePanelView(state: state)
@@ -64,6 +62,10 @@ final class CyclePanelController: NSObject {
     func showSwitcher(for application: Application, startIndex: Int = 0) {
         currentApplication = application
         state.setApplication(application)
+
+        // The selection has changed, so a half/third cycle in progress no longer applies.
+        aligner.resetCycle()
+        activateModifiers = modifierManager.activateModifiers
         
         // Instant switch if the user opted in and there is one actual window
         if UserDefaults.standard.string(forKey: "instantSwitch") == "whenOnlyOneWindowOpen",
@@ -95,21 +97,25 @@ final class CyclePanelController: NSObject {
     }
 
     private func updatePanelSize() {
-        let itemCount = state.items.count
-        let rowsHeight = CGFloat(itemCount) * rowHeight
-        let spacingHeight = CGFloat(max(0, itemCount - 1)) * rowSpacing
-        let listHeight = rowsHeight + spacingHeight + (listVerticalPadding * 2)
-        let desiredContentHeight = headerHeight + dividerHeight + listHeight
+        let desiredContentHeight = CyclePanelMetrics.contentHeight(
+            rowCount: state.items.count,
+            includesHintRow: state.showsAlignmentHints
+        )
 
         let maxContentHeightByScreen: CGFloat = {
-            let visibleFrameHeight = (panel.screen ?? NSScreen.main)?.visibleFrame.height ?? maxPanelFrameHeightCap
-            let maxFrameHeight = min(maxPanelFrameHeightCap, visibleFrameHeight * 0.6)
-            let maxFrameRect = NSRect(x: 0, y: 0, width: panelContentWidth, height: maxFrameHeight)
+            let visibleFrameHeight = (panel.screen ?? NSScreen.main)?.visibleFrame.height
+                ?? CyclePanelMetrics.maxFrameHeightCap
+            let maxFrameHeight = min(CyclePanelMetrics.maxFrameHeightCap, visibleFrameHeight * 0.6)
+            let maxFrameRect = NSRect(x: 0, y: 0,
+                                      width: CyclePanelMetrics.contentWidth,
+                                      height: maxFrameHeight)
             return panel.contentRect(forFrameRect: maxFrameRect).height
         }()
 
         let clampedContentHeight = max(minPanelContentHeight, min(desiredContentHeight, maxContentHeightByScreen))
-        let targetContentRect = NSRect(x: 0, y: 0, width: panelContentWidth, height: clampedContentHeight)
+        let targetContentRect = NSRect(x: 0, y: 0,
+                                       width: CyclePanelMetrics.contentWidth,
+                                       height: clampedContentHeight)
         let targetFrameSize = panel.frameRect(forContentRect: targetContentRect).size
 
         // Keep the panel pinned to the same center while the switcher shortcut is held.
@@ -126,6 +132,8 @@ final class CyclePanelController: NSObject {
     // Called when user presses the switcher shortcut again while panel is visible.
     func cycleNext() {
         state.cycleNext()
+        // A different window is selected now; the next H starts at a half again.
+        aligner.resetCycle()
     }
     
     func isShowingSwitcher(for application: Application) -> Bool {
@@ -172,12 +180,39 @@ final class CyclePanelController: NSObject {
             }
         }
     }
+
+    // MARK: - Alignment
+
+    /// Applies an alignment to the highlighted window.
+    ///
+    /// Deliberately does not raise or focus: leaving focus alone is what lets you align
+    /// one window, tap the digit to move to the next, align that too, and release Ctrl
+    /// once. Releasing Ctrl then runs `activateSelectedWindow()`, which raises without
+    /// touching geometry, so the alignment survives.
+    private func handleAlignment(_ command: AlignmentCommand) {
+        guard let window = state.currentWindow else {
+            // The selection is a launch/focus action, not a window.
+            NSSound.beep()
+            return
+        }
+
+        switch aligner.perform(command, on: window) {
+        case .applied(let layout):
+            state.lastLayout = layout
+        case .restored:
+            state.lastLayout = nil
+        case .refused(let reason):
+            NSSound.beep()
+            print("Alignment refused for \(window.title): \(reason.rawValue)")
+        }
+    }
     
     private func hideSwitcher() {
         removeFlagsMonitor()
         removeKeyDownMonitor()
         panel.orderOut(nil)
         state.reset()
+        aligner.resetCycle()
         currentApplication = nil
         panelAnchorCenter = nil
     }
@@ -229,19 +264,35 @@ final class CyclePanelController: NSObject {
 
         keyDownMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self else { return event }
+            guard self.panel.isVisible else { return event }
 
             // Escape closes the switcher.
-            if self.panel.isVisible, event.keyCode == 53 {
+            if event.keyCode == AlignmentKeyMap.keyCodeEscape {
                 Task { @MainActor in
                     self.hideSwitcher()
                 }
                 return nil
             }
 
-            return event
+            // Auto-repeat would race through the half/third/two-thirds cycle while a
+            // key is simply held down.
+            if event.isARepeat { return nil }
+
+            guard let chord = AlignmentKeyMap.chord(from: event, base: self.activateModifiers),
+                  let command = AlignmentKeyMap.command(for: chord) else {
+                return event
+            }
+
+            Task { @MainActor in
+                self.handleAlignment(command)
+            }
+
+            // Swallow it: above five windows the panel list lives in a ScrollView, and
+            // an unswallowed arrow key would scroll it as well as align.
+            return nil
         }
     }
-
+    
     private func removeKeyDownMonitor() {
         if let monitor = keyDownMonitor {
             NSEvent.removeMonitor(monitor)

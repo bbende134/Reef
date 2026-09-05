@@ -50,13 +50,48 @@ In this way, Reef gives every app its own 'Alt-Tab'.
 
 Note that window switching is scoped to your current [macOS space](https://support.apple.com/en-ca/guide/mac-help/mh14112/mac).
 
+### Aligning windows
+
+While the switcher panel is open — that is, while you are still holding <kbd>Ctrl</kbd> — you can also *move* the highlighted window:
+
+| Key | Action |
+| --- | --- |
+| <kbd>H</kbd> / <kbd>L</kbd> | Left / right half. Press again to cycle ½ → ⅓ → ⅔ |
+| <kbd>K</kbd> / <kbd>J</kbd> | Top / bottom half, with the same cycling |
+| <kbd>⌥</kbd> + <kbd>H</kbd>/<kbd>J</kbd>/<kbd>K</kbd>/<kbd>L</kbd> | Quarters along that edge; press again for the other corner |
+| <kbd>M</kbd> | Maximize (fills the screen; not native full screen) |
+| <kbd>C</kbd> | Centre, keeping the window's size |
+| <kbd>R</kbd> | Put the window back where it was before Reef first moved it |
+
+So <kbd>Ctrl</kbd>+<kbd>1</kbd>, then <kbd>H</kbd>, then release: summon a window, snap it left, land in it — one motion.
+
+Aligning does not raise the window, so you can align one window, tap the number key to move to the next, align that one too, and release <kbd>Ctrl</kbd> once. Pressing <kbd>Esc</kbd> after aligning keeps the new position without switching to the window.
+
+Alignment adds **no new global shortcuts** — the keys above are only live while the panel is open, so nothing collides with your existing bindings or with macOS's own shortcuts.
+
+Arrow keys are wired to the same actions as <kbd>H</kbd>/<kbd>J</kbd>/<kbd>K</kbd>/<kbd>L</kbd>, but on a stock Mac they never reach Reef: <kbd>Ctrl</kbd>+arrow is claimed by Mission Control and by "move left/right a space". Turn those off in **System Settings → Keyboard → Keyboard Shortcuts → Mission Control** if you would rather use arrows.
+
+#### Known limitations
+
+- **Full-screen, minimized, and fixed-size windows are refused** (Reef beeps). Aligning a native full-screen window would leave it in a broken half-full-screen state.
+- **Some apps clamp what you ask for.** Terminal snaps to its character grid, and many Electron apps enforce a minimum size. Reef keeps the size the app insists on and slides the window back inside the screen.
+- **Stage Manager.** macOS does not publish the width of the Stage Manager strip, so Reef cannot subtract it automatically. If you run Stage Manager with the strip pinned, set the inset once:
+  ```
+  defaults write xandergouws.Reef alignmentStageManagerInset -float 64
+  ```
+
 ### Customization
 
 You can customize the modifiers for switching applications and profiles, and for binding different applications in **Reef Preferences → Shortcuts**.
 
-Reef also pairs well with [Rectangle](https://github.com/rxhanson/Rectangle):
-- Rectangle positions & re-arranges your windows
-- Reef re-focuses your windows
+### Credits
+
+The window-framing logic — the order Accessibility writes have to be made in, the
+`AXEnhancedUserInterface` workaround for Electron and Chromium apps, and the carve-out
+that leaves it alone while VoiceOver or Switch Control is running — is ported from
+[Rectangle](https://github.com/rxhanson/Rectangle) (MIT, Copyright (c) 2019-2026 Ryan
+Hanson, based on Spectacle, Copyright (c) 2017 Eric Czarny). That hard-won knowledge is
+theirs.
 
 
 ## Installation
