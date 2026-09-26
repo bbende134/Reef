@@ -3,12 +3,12 @@
     <channel>
         <title>Reef</title>
         <item>
-            <title>1.0.0</title>
-            <pubDate>Sun, 29 Mar 2026 00:38:33 -0400</pubDate>
-            <sparkle:version>2</sparkle:version>
-            <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
+            <title>1.1.0</title>
+            <pubDate>Sat, 26 Sep 2026 14:06:14 -0400</pubDate>
+            <sparkle:version>3</sparkle:version>
+            <sparkle:shortVersionString>1.1.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.6</sparkle:minimumSystemVersion>
-            <enclosure url="https://github.com/gouwsxander/Reef/releases/download/1.0.0/Reef.zip" length="3678535" type="application/octet-stream" sparkle:edSignature="LGDmvpwhgWaL+yw09N5W+McSiiRmUUCZkY73I98i2zESCFtFTufxsbTDux3SEh7vIxLOCtntM4tZkS/tP2f5Cw=="/>
+            <enclosure url="https://github.com/gouwsxander/Reef/releases/download/1.1.0/Reef.zip" length="3802934" type="application/octet-stream" sparkle:edSignature="Kuj2wC2xSfwKPGe3FlpZCo9yhahH+eITrnlFwUtiWE/H2OXq1mQvRuChGZRDAcxJbjvu4+XDZGd7qr89Nd03DA=="/>
         </item>
     </channel>
 </rss>
