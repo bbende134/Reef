@@ -44,6 +44,22 @@ class Window: Identifiable {
             return
         }
 
+        // A hidden app's windows are listed but not shown; activation alone leaves them so.
+        if let runningApplication = application.runningApplication, runningApplication.isHidden {
+            runningApplication.unhide()
+        }
+
+        // Ask the window server to front this exact window. This is what reliably crosses
+        // to a Space that has never been shown (activation can land on the app's other
+        // window, or be ignored from a background agent). Raise once more afterwards so
+        // the window is also first within its app.
+        if let windowID = cgWindowID, windowID != 0,
+           let pid = application.pid,
+           SkyLightFocus.focus(windowID: windowID, pid: pid) {
+            try? self.element.performAction(.raise)
+            return
+        }
+
         self.application.activate()
     }
     

@@ -77,10 +77,9 @@ struct PreferencesGeneralView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Number order sets the order in which numbers are displayed in the menubar")
 
-                    Text("Switching across spaces only covers spaces you have visited since "
-                         + "Reef started, because macOS does not let an app see windows on a "
-                         + "space it has not been shown. Turn this off to list only the space "
-                         + "you are on.")
+                    Text("Lists an app's windows on every space and display, and switches to "
+                         + "the space of the window you pick. Turn this off to list only the "
+                         + "space you are on.")
                 }
             }
         }

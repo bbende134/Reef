@@ -1,5 +1,11 @@
 # Reef
 
+> **This is a personal fork of [gouwsxander/Reef](https://github.com/gouwsxander/Reef)**
+> (MIT). It adds window alignment from the cycle panel, switching across every macOS
+> space and display, and a build that needs only the Xcode Command Line Tools. Sparkle
+> auto-update is removed. Build it yourself with `./build.sh`; see
+> [Development](#development). The official app is at [getreef.app](https://getreef.app).
+
 The macOS window manager that gives every app its own Alt-Tab. 
 
 ![Cover photo. Reef logo and UI.](./github-assets/reef-banner-1280-short.jpg)
@@ -51,15 +57,25 @@ In this way, Reef gives every app its own 'Alt-Tab'.
 Window switching reaches across [macOS spaces](https://support.apple.com/en-ca/guide/mac-help/mh14112/mac), not just the desktop you are looking at.
 
 The Accessibility API only reports an app's windows on the current space — an app whose
-windows all live on another desktop returns nothing at all. Reef works around this by
-keeping every window handle it has seen: a handle captured while its window was on the
-current space stays valid, and keeps a readable title, after you move away. Windows on
-the desktop you are on are listed first.
+windows all live on another desktop returns nothing at all. Reef fills the gap from two
+sources:
 
-The limitation this leaves is worth knowing: **Reef only learns about a space once you
-have visited it since Reef started.** The list fills in as you work rather than being
-complete at launch. Doing better needs either private SkyLight APIs or Screen Recording
-permission, neither of which seems a fair price for a window switcher.
+- **Handles it has seen.** A window handle captured while its window was on the current
+  space stays valid, with a readable title, after you move away.
+- **Discovery.** `CGWindowList` names every window id an app owns on every space (without
+  titles, which need Screen Recording). For ids no handle covers, Reef rebuilds the
+  Accessibility element from a remote token (`_AXUIElementCreateWithRemoteToken`, the
+  technique [AltTab](https://github.com/lwouis/alt-tab-macos) uses), so windows on spaces
+  you have not visited since Reef started — full-screen ones included — show up too.
+
+Picking a window on another space brings you to it via the window server's
+`_SLPSSetFrontProcessWithOptions` (what the Dock uses), falling back to plain activation
+if that private call is ever unavailable. Windows on the desktop you are on are listed
+first; the rest follow in most-recently-used order.
+
+If an app has no windows at all, Reef launches or reopens it and then follows up: an app
+that restores its windows onto other spaces (Safari does) is followed there, and an app
+that ignores the first reopen request is asked once more.
 
 ### Aligning windows
 

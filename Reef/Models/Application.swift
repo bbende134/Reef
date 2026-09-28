@@ -178,18 +178,56 @@ class Application {
         try reopen(configuration: Self.defaultOpenConfiguration()) { _ in }
     }
     
+    @MainActor
     func performNoWindowAction() async -> Bool {
         if let existingWindow = getWindows().first {
             existingWindow.focus()
             return true
         }
         
+        let wasRunning = isRunning
+
         do {
             _ = try await reopen(configuration: Self.defaultOpenConfiguration(activates: true))
-            return true
         } catch {
             return false
         }
+
+        await followUpAfterReopen(wasRunning: wasRunning)
+        return true
+    }
+
+    /// Launching or reopening returns before any window exists, and what the app does next
+    /// varies: Safari restores last session's windows onto the Spaces they came from, so
+    /// nothing appears where you are; a running app sometimes ignores the first reopen
+    /// request. Watch briefly and finish the job.
+    @MainActor
+    private func followUpAfterReopen(wasRunning: Bool) async {
+        let pollInterval: Duration = .milliseconds(150)
+        let deadline = ContinuousClock.now + .seconds(wasRunning ? 2 : 5)
+
+        while ContinuousClock.now < deadline {
+            try? await Task.sleep(for: pollInterval)
+
+            guard let runningApplication = refreshRunningApplication() else { continue }
+            guard runningApplication.isFinishedLaunching else { continue }
+
+            let windows = getWindows()
+            guard let first = windows.first else { continue }
+
+            // A window on this Space means the launch did what was asked.
+            let onThisSpace: [AXUIElement] = element?.getAttributeValue(.windows) ?? []
+            if onThisSpace.isEmpty {
+                // Everything came back on other Spaces: go to it, as for any window there.
+                first.focus()
+            }
+            return
+        }
+
+        // Still nothing: ask once more. Running apps with no windows open a fresh one on
+        // reopen; the first request can be lost when it lands mid-launch or mid-quit.
+        guard refreshRunningApplication() != nil, getWindows().isEmpty else { return }
+        _ = try? await reopen(configuration: Self.defaultOpenConfiguration(activates: true))
     }
     
     static func getFrontApplication() -> Application? {
@@ -218,13 +256,17 @@ class Application {
     }
 
     func getAXWindows() -> [AXUIElement] {
+        // A binding loaded while its app was closed has no element; nor does one whose app
+        // has since quit and relaunched under a new pid. Re-resolve before reading.
+        refreshRunningApplication()
+
         guard let element = element else {
             return []
         }
         
         // Accessibility only reports windows on the Space we are currently on. Anything
         // this app has open on another desktop is invisible here, so the registry adds
-        // back the handles it captured while those Spaces were visited.
+        // back the handles it has captured or discovered on other Spaces.
         let live: [AXUIElement] = element.getAttributeValue(.windows) ?? []
 
         guard let pid else {
@@ -232,6 +274,7 @@ class Application {
         }
 
         let liveIDs = WindowRegistry.shared.record(pid: pid)
+        WindowRegistry.shared.discover(pid: pid, excluding: liveIDs)
         let offSpace = WindowRegistry.shared.offSpaceWindows(pid: pid, excluding: liveIDs)
 
         // Windows on the current Space stay first, so switching within the desktop you
