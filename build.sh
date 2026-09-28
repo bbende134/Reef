@@ -19,7 +19,18 @@ BUNDLE_ID="xandergouws.Reef"
 SHORT_VERSION="1.1.0-fork"
 BUILD_VERSION="9000"
 
-echo "==> Compiling"
+# From the macOS 27 SDK on, SwiftUI's @State is a macro whose plugin ships only inside
+# Xcode.app, so the Command Line Tools cannot compile it against that SDK. Build against
+# the newest pre-27 SDK the Command Line Tools still carry, unless SDKROOT is set.
+if [ -z "${SDKROOT:-}" ]; then
+  SDK_DIR="$(xcode-select -p)/SDKs"
+  PRE27_SDK="$(ls -d "$SDK_DIR"/MacOSX2[0-6].*.sdk "$SDK_DIR"/MacOSX1[0-9].*.sdk 2>/dev/null | sort -V | tail -1 || true)"
+  if [ -n "$PRE27_SDK" ]; then
+    export SDKROOT="$PRE27_SDK"
+  fi
+fi
+
+echo "==> Compiling (SDK: ${SDKROOT:-default})"
 xcrun swift build -c release --arch arm64
 
 echo "==> Assembling $APP"
